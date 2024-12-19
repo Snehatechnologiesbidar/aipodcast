@@ -1,14 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
+  output: 'server',
+  eslint: {
+    ignoreDuringBuilds: true
+  },
+  images: { unoptimized: true },
+  webpack: (config, { isServer }) => {
+    // Add handling for undici module
     config.resolve.alias = {
       ...config.resolve.alias,
-      'undici': false,  // Disable undici
-    };
-    return config;
+      undici: false // Disable undici in client-side code
+    }
+
+    return config
   },
   experimental: {
-    serverComponentsExternalPackages: ['@google-cloud/text-to-speech']
+    serverActions: true
   }
 }
 

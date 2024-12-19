@@ -4,16 +4,12 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { config } from "@/lib/config";
-import { createPodcastAudio } from "@/lib/script-generator";
-import VoiceManager from "@/components/voice-manager";
 import PodcastHeader from "./header";
 import PodcastForm from "./podcast-form";
-import NavigationButtons from "./navigation-buttons";
+import { createPodcastAudio } from "@/lib/script-generator";
 
 export default function CreatePodcast() {
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [script, setScript] = useState('');
@@ -27,11 +23,6 @@ export default function CreatePodcast() {
         title: "Error",
         description: "Please generate or write a script first",
       });
-      return;
-    }
-
-    if (!config.google.clientEmail || !config.google.privateKey) {
-      setError('Google Cloud credentials not found in environment variables');
       return;
     }
 
@@ -77,25 +68,15 @@ export default function CreatePodcast() {
       )}
 
       <div className="space-y-8">
-        {step === 1 && <VoiceManager />}
-
-        {step === 2 && (
-          <PodcastForm
-            title={title}
-            description={description}
-            onTitleChange={setTitle}
-            onDescriptionChange={setDescription}
-            onScriptGenerated={setScript}
-          />
-        )}
-
-        <NavigationButtons
-          step={step}
+        <PodcastForm
+          title={title}
+          description={description}
+          onTitleChange={setTitle}
+          onDescriptionChange={setDescription}
+          onScriptGenerated={setScript}
           isGenerating={isGenerating}
-          hasScript={!!script}
-          onPrevious={() => setStep(step - 1)}
-          onNext={() => setStep(step + 1)}
           onGenerate={handleGeneratePodcast}
+          hasScript={!!script}
         />
       </div>
     </div>

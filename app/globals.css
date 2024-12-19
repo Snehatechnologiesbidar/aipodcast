@@ -80,3 +80,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+button.selected {
+  @apply bg-primary text-primary-foreground;
+}
