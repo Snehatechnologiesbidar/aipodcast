@@ -15,6 +15,7 @@ export async function synthesizeText(
       body: JSON.stringify({
         text: options.text.trim(),
         speakers: options.speakers,
+        useAwsVoice: options.useAwsVoice || false,
         voice: options.voice.trim(),
         language: options.language || 'en-US',
         speakingRate: options.speakingRate || 1.0,

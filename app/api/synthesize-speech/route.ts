@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { TextToSpeechOptions } from '@/types/speech'
 import { GoogleAuth } from 'google-auth-library'
 import { config } from '@/lib/config'
+import AWS from 'aws-sdk'
 
 const GOOGLE_CLOUD_API_ENDPOINT =
   'https://texttospeech.googleapis.com/v1/text:synthesize'
@@ -56,7 +57,6 @@ function generatePodcastScripSSML(
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '')
-
   let script: string = '<speak>'
   let currentHost = ''
   let regexMatchs = ''
@@ -76,18 +76,22 @@ function generatePodcastScripSSML(
 
   const regexSSML = new RegExp(`\\*\\*(${regexMatchs}):?\\*\\*:?\\s*`)
 
-  // Debugging: Log the lines before processing
-  console.log('regexSSML:', regexSSML)
-  console.log('Lines:', lines)
-
   lines.forEach((line: string) => {
     const speakerMatch = line.match(regexSSML)
 
     if (speakerMatch) {
-      const host = speakerMatch[0].replace(/\*\*/g, '').replace(':', '').trim() // Remove the asterisks and colon
+      // If a new speaker is detected, set the currentHost to the matched speaker
+      currentHost = speakerMatch[1].toLowerCase() // Get speaker name
       const text = line.replace(regexSSML, '').trim() // Remove the speaker label
 
-      script += `<voice name="${speakerVoiceMap[host]}">${text}</voice>`
+      script += `<voice name="${speakerVoiceMap[currentHost]}">${text}</voice>`
+    } else if (currentHost) {
+      // If there's no new speaker match, but a currentHost exists,
+      // this line should belong to the previous speaker.
+      // Ensure content like lists or multi-line blocks are included
+      script += `<voice name="${
+        speakerVoiceMap[currentHost]
+      }">${line.trim()}</voice>`
     }
   })
 
@@ -97,6 +101,90 @@ function generatePodcastScripSSML(
   console.log('Generated Script:', script)
 
   return script
+}
+
+function generateScriptForPolly(
+  conversation: string,
+  speakers: { name: string; voice: string; gender: 'male' | 'female' }[]
+) {
+  const lines = conversation
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+  const script: { text: string; voice: string }[] = []
+  let currentHost = ''
+  let regexMatchs = ''
+  const sLen = speakers.length
+
+  const speakerVoiceMap: { [key: string]: string } = {}
+
+  for (let i = 0; i < sLen; i++) {
+    const slug = speakers[i].name.replace(/\s/g, '').toLowerCase()
+    speakerVoiceMap[slug] = speakers[i].voice
+    if (i == sLen - 1) {
+      regexMatchs += `${slug}`
+    } else {
+      regexMatchs += `${slug}|`
+    }
+  }
+
+  const regexSSML = new RegExp(`\\*\\*(${regexMatchs}):?\\*\\*:?\\s*`)
+  lines.forEach((line: string) => {
+    const speakerMatch = line.match(regexSSML)
+    console.log('Speaker Match:', speakerMatch)
+    if (speakerMatch) {
+      currentHost = speakerMatch[1].toLowerCase() // Get speaker name
+      const text = line.replace(regexSSML, '').trim()
+
+      script.push({ text, voice: speakerVoiceMap[currentHost] })
+    } else if (currentHost) {
+      script.push({ text: line.trim(), voice: speakerVoiceMap[currentHost] })
+    }
+  })
+  return script
+}
+
+async function synthesizeWithPolly(
+  options: TextToSpeechOptions
+): Promise<{ audioContent: string; duration: number }> {
+  const polly = new AWS.Polly({
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.ACCESS_KEY || '',
+      secretAccessKey: process.env.SECRET_ACCESS_KEY || ''
+    }
+  })
+
+  const script = generateScriptForPolly(
+    options.text.trim(),
+    options.speakers || []
+  )
+
+  console.log('Polly Script:', script)
+  const audioBuffers: Buffer[] = []
+
+  for (const { text, voice } of script) {
+    const params = {
+      OutputFormat: 'mp3',
+      Text: text,
+      VoiceId: voice,
+      Engine: 'generative'
+    }
+
+    const response = await polly.synthesizeSpeech(params).promise()
+    console.log('Polly Response:', response)
+    if (response.AudioStream instanceof Buffer) {
+      audioBuffers.push(response.AudioStream)
+    }
+  }
+
+  const mergedBuffer = Buffer.concat(
+    audioBuffers.map((buffer) => new Uint8Array(buffer))
+  )
+  const audioContent = mergedBuffer.toString('base64')
+  const duration = Math.ceil(mergedBuffer.length / 32000)
+
+  return { audioContent, duration }
 }
 
 export async function POST(request: Request) {
@@ -128,8 +216,6 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log('Options:', options)
-
     const input: {
       multiSpeakerMarkup?: {
         turns?: {
@@ -141,26 +227,34 @@ export async function POST(request: Request) {
       text?: string
     } = {}
 
+    let voice = 'en-US-Studio-MultiSpeaker'
     if (options.speakers && options.speakers.length > 0) {
+      if (options.useAwsVoice) {
+        const result = await synthesizeWithPolly(options)
+
+        return NextResponse.json(result)
+      }
+
       const ssml = generatePodcastScripSSML(
         options.text?.trim(),
         options.speakers
       )
       console.log('SSML:', ssml)
       input.ssml = ssml
+      voice = 'en-US-Neural2-A'
     } else {
       const script = generatePodcastScript(options.text?.trim())
 
       // Multi-speaker dialogue configuration
       const dialogue = script.map(({ text, host }) => {
         let hostName = 'S'
-        if (host === 'Male1') {
+        if (host === 'male1') {
           hostName = 'S'
-        } else if (host === 'Female1') {
+        } else if (host === 'female1') {
           hostName = 'R'
-        } else if (host === 'Male2') {
+        } else if (host === 'male2') {
           hostName = 'S'
-        } else if (host === 'Female2') {
+        } else if (host === 'female2') {
           hostName = 'R'
         }
 
@@ -209,7 +303,7 @@ export async function POST(request: Request) {
         input,
         voice: {
           languageCode: 'en-US',
-          name: 'en-US-Neural2-A' // Multi-speaker voice
+          name: voice // Multi-speaker voice
         },
         audioConfig: {
           audioEncoding: 'MP3'

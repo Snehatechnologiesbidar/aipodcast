@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
@@ -11,6 +11,7 @@ import { generatePodcastScript } from '@/lib/script-generator'
 interface ScriptGeneratorProps {
   title: string
   description: string
+  duration: string
   onScriptGenerated: (script: string) => void
   beforeGenerate?: () => void | Error
   speakers?: { name: string; voice: string; gender: 'male' | 'female' }[]
@@ -19,6 +20,7 @@ interface ScriptGeneratorProps {
 export default function ScriptGenerator({
   title,
   description,
+  duration = 'short',
   onScriptGenerated,
   beforeGenerate,
   speakers
@@ -27,6 +29,10 @@ export default function ScriptGenerator({
   const [isGenerating, setIsGenerating] = useState(false)
   const [script, setScript] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setScript('')
+  }, [speakers])
 
   const handleGenerateScript = async () => {
     if (beforeGenerate) {
@@ -54,11 +60,20 @@ export default function ScriptGenerator({
 
     setIsGenerating(true)
     setError(null)
-
+    const durationString = () => {
+      switch (duration) {
+        case 'medium':
+          return '5000 - 8000 words'
+        case 'long':
+          return '10000 - 15000 words'
+        default:
+          return '2 to 5 minutes'
+      }
+    }
     try {
       const generatedScript = await generatePodcastScript(
         title,
-        description,
+        description + ` The script should long between ${durationString()}.`,
         speakers
       )
       setScript(generatedScript)

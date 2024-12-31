@@ -1,6 +1,7 @@
 export interface TextToSpeechOptions {
   text: string
   speakers?: { name: string; voice: string; gender: 'male' | 'female' }[]
+  useAwsVoice?: boolean
   voice: string
   language?: string
   speakingRate?: number
