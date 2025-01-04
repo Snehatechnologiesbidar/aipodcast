@@ -1,33 +1,33 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Upload, Mic, Globe, Trash } from 'lucide-react';
-import VoiceManager from '@/components/voice-manager';
-import ScriptGenerator from '@/components/script-generator';
-import { use, useEffect, useState } from 'react';
-import { useToast } from '@/components/ui/use-toast';
-import { createPodcastAudio } from '@/lib/script-generator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-import { config } from '@/lib/config';
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, Mic, Globe, Trash } from "lucide-react";
+import VoiceManager from "@/components/voice-manager";
+import ScriptGenerator from "@/components/script-generator";
+import { use, useEffect, useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { createPodcastAudio } from "@/lib/script-generator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { config } from "@/lib/config";
 
 export default function CreatePodcast() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [duration, setDuration] = useState('short');
-  const [script, setScript] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState("short");
+  const [script, setScript] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useMultiSpeaker, setUseMultiSpeaker] = useState(false);
@@ -37,16 +37,16 @@ export default function CreatePodcast() {
   const [clonedVoiceName, setClonedVoiceName] = useState<string | null>(null);
 
   const [speakers, setSpeakers] = useState([
-    { id: 'host', name: 'Host', voice: 'en-US-Neural2-D' },
-    { id: 'guest', name: 'Guest', voice: 'en-US-Neural2-D' },
+    { id: "host", name: "Host", voice: "en-US-Neural2-D" },
+    { id: "guest", name: "Guest", voice: "en-US-Neural2-D" },
   ]);
   const [selectedSpeakers, setSelectedSpeakers] = useState<
-    { name: string; voice: string; gender: 'male' | 'female' }[]
+    { name: string; voice: string; gender: "male" | "female" }[]
   >([]);
 
   useEffect(() => {
-    const storedVoiceId = localStorage.getItem('lastVoiceId');
-    const storedVoiceName = localStorage.getItem('lastVoiceName');
+    const storedVoiceId = localStorage.getItem("lastVoiceId");
+    const storedVoiceName = localStorage.getItem("lastVoiceName");
 
     if (storedVoiceId && storedVoiceName) {
       setClonedVoiceId(storedVoiceId);
@@ -55,16 +55,16 @@ export default function CreatePodcast() {
   }, []);
 
   const handleDefaultVoiceSelection = () => {
-    const voiceToUse = clonedVoiceId || 'en-US-Neural2-D';
+    const voiceToUse = clonedVoiceId || "en-US-Neural2-D";
     setSelectedSpeakers([
-      { name: 'Default Speaker', voice: voiceToUse, gender: 'male' },
+      { name: "Default Speaker", voice: voiceToUse, gender: "male" },
     ]);
   };
 
   const addSelectedSpeaker = () => {
     setSelectedSpeakers([
       ...selectedSpeakers,
-      { name: '', voice: '', gender: 'male' },
+      { name: "", voice: "", gender: "male" },
     ]);
   };
 
@@ -82,21 +82,21 @@ export default function CreatePodcast() {
 
   const validateOptions = () => {
     if (!title) {
-      return new Error('Please enter a podcast title');
+      return new Error("Please enter a podcast title");
     }
 
     if (useMultiSpeaker && selectedSpeakers.length === 0) {
-      return new Error('Please add at least one speaker');
+      return new Error("Please add at least one speaker");
     }
 
     if (useMultiSpeaker) {
       for (let index = 0; index < selectedSpeakers.length; index++) {
         const speaker = selectedSpeakers[index];
-        if (!speaker.name || speaker.name === '') {
+        if (!speaker.name || speaker.name === "") {
           return new Error(`Please enter a name for speaker ${index + 1}`);
         }
 
-        if (!speaker.voice || speaker.voice === '') {
+        if (!speaker.voice || speaker.voice === "") {
           return new Error(`Please select a voice for speaker ${index + 1}`);
         }
       }
@@ -106,15 +106,15 @@ export default function CreatePodcast() {
   const handleGeneratePodcast = async () => {
     if (!script) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please generate or write a script first',
+        variant: "destructive",
+        title: "Error",
+        description: "Please generate or write a script first",
       });
       return;
     }
 
     if (!config.google.clientEmail || !config.google.privateKey) {
-      setError('Google Cloud credentials not found in environment variables');
+      setError("Google Cloud credentials not found in environment variables");
       return;
     }
 
@@ -128,27 +128,27 @@ export default function CreatePodcast() {
           speakers: useMultiSpeaker ? selectedSpeakers : undefined,
           useAwsVoice,
         },
-        clonedVoiceId || 'en-US-Neural2-D'
+        clonedVoiceId || "en-US-Neural2-D"
       );
 
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = audioUrl;
-      link.download = `${title.replace(/\s+/g, '-').toLowerCase()}.mp3`;
+      link.download = `${title.replace(/\s+/g, "-").toLowerCase()}.mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
       toast({
-        title: 'Success',
-        description: 'Podcast generated and downloaded successfully!',
+        title: "Success",
+        description: "Podcast generated and downloaded successfully!",
       });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to generate podcast';
+        error instanceof Error ? error.message : "Failed to generate podcast";
       setError(errorMessage);
       toast({
-        variant: 'destructive',
-        title: 'Error',
+        variant: "destructive",
+        title: "Error",
         description: errorMessage,
       });
     } finally {
@@ -222,18 +222,18 @@ export default function CreatePodcast() {
                 <Button
                   onClick={() => setUseAwsVoice(!useAwsVoice)}
                   variant="outline"
-                  className={`flex-1 ${useAwsVoice ? 'selected' : ''}`}
+                  className={`flex-1 ${useAwsVoice ? "selected" : ""}`}
                 >
                   {(useAwsVoice
-                    ? 'Using AWS Polly voices'
-                    : 'Using Google voices') + ', click to change'}
+                    ? "Using AWS Polly voices"
+                    : "Using Google voices") + ", click to change"}
                 </Button>
               </label>
               <div className="flex gap-4">
                 <Button
                   onClick={() => setUseMultiSpeaker(true)}
                   variant="outline"
-                  className={`flex-1 ${useMultiSpeaker ? 'selected' : ''}`}
+                  className={`flex-1 ${useMultiSpeaker ? "selected" : ""}`}
                 >
                   Select manually
                 </Button>
@@ -244,7 +244,7 @@ export default function CreatePodcast() {
                     handleDefaultVoiceSelection();
                   }}
                   variant="outline"
-                  className={`flex-1 ${!useMultiSpeaker ? 'selected' : ''}`}
+                  className={`flex-1 ${!useMultiSpeaker ? "selected" : ""}`}
                 >
                   Use cloned voice
                 </Button>
@@ -264,13 +264,13 @@ export default function CreatePodcast() {
                         placeholder="Speaker name"
                         value={speaker.name}
                         onChange={(e) =>
-                          updateSelectedSpeaker(index, 'name', e.target.value)
+                          updateSelectedSpeaker(index, "name", e.target.value)
                         }
                       />
                       <Select
                         value={speaker.voice}
                         onValueChange={(value) =>
-                          updateSelectedSpeaker(index, 'voice', value)
+                          updateSelectedSpeaker(index, "voice", value)
                         }
                       >
                         <SelectTrigger className="flex-1">
@@ -298,6 +298,11 @@ export default function CreatePodcast() {
                             <SelectItem value="Ruth">
                               Ruth( English Female)
                             </SelectItem>
+                            {clonedVoiceId && (
+                              <SelectItem value="elevenlab">
+                                {clonedVoiceName}
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         ) : (
                           <SelectContent>
@@ -325,7 +330,7 @@ export default function CreatePodcast() {
                       <Select
                         value={speaker.gender}
                         onValueChange={(value) =>
-                          updateSelectedSpeaker(index, 'gender', value)
+                          updateSelectedSpeaker(index, "gender", value)
                         }
                       >
                         <SelectTrigger className="flex-1">
@@ -401,7 +406,7 @@ export default function CreatePodcast() {
               disabled={isGenerating || !script}
             >
               <Mic className="w-4 h-4 mr-2" />
-              {isGenerating ? 'Generating...' : 'Generate Podcast'}
+              {isGenerating ? "Generating..." : "Generate Podcast"}
             </Button>
           )}
         </div>

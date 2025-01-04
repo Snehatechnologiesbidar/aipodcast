@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export interface AudioRecorderState {
   isRecording: boolean;
@@ -17,21 +17,21 @@ export function useAudioRecorder() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
   );
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setAudioChunks((chunks) => [...chunks, event.data]);
+          chunks.push(event.data);
         }
       };
 
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(chunks, { type: "audio/wav" });
         const audioUrl = URL.createObjectURL(audioBlob);
         setState((prev) => ({
           ...prev,
@@ -48,7 +48,7 @@ export function useAudioRecorder() {
       setState((prev) => ({
         ...prev,
         error:
-          'Failed to access microphone. Please ensure microphone permissions are granted.',
+          "Failed to access microphone. Please ensure microphone permissions are granted.",
       }));
     }
   };
@@ -71,7 +71,6 @@ export function useAudioRecorder() {
       audioUrl: null,
       error: null,
     });
-    setAudioChunks([]);
   };
 
   useEffect(() => {
